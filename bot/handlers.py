@@ -148,18 +148,11 @@ async def _process_single_photo(update: Update) -> None:
         cdn_url = await upload_image(bytes(image_bytes), github)
 
         if caption.strip():
-            # 有 caption: 上传图片 + 发布 Essay
             body = f"{caption}\n\n![image]({cdn_url})"
-            result = await github.publish_content(body)
-            await msg.reply_text(
-                f"已发布 ✓\n路径: {result.file_path}"
-            )
         else:
-            # 无 caption: 仅返回 CDN URL
-            await msg.reply_text(
-                f"图片已上传 ✓\n`![image]({cdn_url})`",
-                parse_mode="Markdown",
-            )
+            body = f"![image]({cdn_url})"
+        result = await github.publish_content(body)
+        await msg.reply_text(f"已发布 ✓\n路径: {result.file_path}")
     except Exception as exc:
         logger.exception("图片处理失败")
         await msg.reply_text(f"处理失败: {exc}")
@@ -192,21 +185,15 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
             url = await upload_image(bytes(image_bytes), github)
             cdn_urls.append(url)
 
+        images_md = "\n\n".join(f"![image]({url})" for url in cdn_urls)
         if caption.strip():
-            # 有 caption: 所有图片嵌入到一条 Essay
-            images_md = "\n\n".join(f"![image]({url})" for url in cdn_urls)
             body = f"{caption}\n\n{images_md}"
-            result = await github.publish_content(body)
-            await reply_msg.reply_text(
-                f"已发布 ✓ ({len(cdn_urls)} 张图片)\n路径: {result.file_path}"
-            )
         else:
-            # 无 caption: 返回所有 CDN URL
-            lines = [f"`![image]({url})`" for url in cdn_urls]
-            await reply_msg.reply_text(
-                f"已上传 {len(cdn_urls)} 张图片 ✓\n\n" + "\n\n".join(lines),
-                parse_mode="Markdown",
-            )
+            body = images_md
+        result = await github.publish_content(body)
+        await reply_msg.reply_text(
+            f"已发布 ✓ ({len(cdn_urls)} 张图片)\n路径: {result.file_path}"
+        )
     except Exception as exc:
         logger.exception("多图处理失败")
         await reply_msg.reply_text(f"处理失败: {exc}")
