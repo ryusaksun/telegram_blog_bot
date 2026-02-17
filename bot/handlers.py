@@ -8,6 +8,7 @@ from functools import wraps
 from typing import Any
 
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 
 from . import config
@@ -97,6 +98,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not text or not text.strip():
         return
 
+    await update.message.chat.send_action(ChatAction.TYPING)
     try:
         result = await github.publish_content(text)
         await update.message.reply_text(
@@ -131,6 +133,7 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
 
     # 单图处理
+    await msg.chat.send_action(ChatAction.UPLOAD_PHOTO)
     await _process_single_photo(update)
 
 
@@ -176,6 +179,7 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
     # 下载并上传所有图片
     cdn_urls: list[str] = []
     reply_msg = updates[0].message  # 用第一条消息回复
+    await reply_msg.chat.send_action(ChatAction.UPLOAD_PHOTO)
 
     try:
         for u in updates:
