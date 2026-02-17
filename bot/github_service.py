@@ -167,6 +167,41 @@ class GitHubService:
         return ImageUploadResult(success=True, path=file_path, url=cdn_url)
 
     # ------------------------------------------------------------------
+    # 列出目录 / 删除文件
+    # ------------------------------------------------------------------
+
+    async def list_essays(self, limit: int = 10) -> list[dict[str, str]]:
+        """列出最近的 Essay 文件，按文件名倒序（即按日期倒序）"""
+        endpoint = f"/repos/{config.GITHUB_OWNER}/{config.GITHUB_REPO}/contents/src/content/essays"
+        if config.GITHUB_BRANCH:
+            endpoint += f"?ref={config.GITHUB_BRANCH}"
+        resp = await self.request(endpoint)
+        items = resp.json()
+        # 只保留 .md 文件，按名称倒序取最新
+        md_files = [
+            {"name": f["name"], "path": f["path"], "sha": f["sha"]}
+            for f in items if f["name"].endswith(".md")
+        ]
+        md_files.sort(key=lambda x: x["name"], reverse=True)
+        return md_files[:limit]
+
+    async def delete_file(self, path: str) -> None:
+        """删除文件"""
+        existing = await self.get_file(path, branch=config.GITHUB_BRANCH)
+        if not existing:
+            raise FileNotFoundError(f"文件不存在: {path}")
+        name = path.rsplit("/", 1)[-1]
+        await self.request(
+            f"/repos/{config.GITHUB_OWNER}/{config.GITHUB_REPO}/contents/{path}",
+            method="DELETE",
+            body={
+                "message": f"Delete essay: {name}",
+                "sha": existing["sha"],
+                "branch": config.GITHUB_BRANCH,
+            },
+        )
+
+    # ------------------------------------------------------------------
     # Token 验证 — 对应 GitHubService.swift 第 141-171 行
     # ------------------------------------------------------------------
 

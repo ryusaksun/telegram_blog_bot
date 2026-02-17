@@ -52,6 +52,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "直接发送文字即发布为 Essay\n"
         "发送图片 → 上传图片并发布为 Essay\n"
         "图片+文字 → 文字+图片一起发布\n\n"
+        "/list — 最近发布的 Essay\n"
+        "/delete — 删除指定 Essay\n"
         "/status — 检查 GitHub 连接\n"
         "/help — 帮助"
     )
@@ -66,7 +68,10 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "2. 图片 → 上传图片并发布为 Essay\n"
         "3. 图片+caption → 文字+图片一起发布\n"
         "4. 多图 → 所有图片合并为一条 Essay\n"
-        "5. 多图+caption → 文字+所有图片一起发布"
+        "5. 多图+caption → 文字+所有图片一起发布\n\n"
+        "管理:\n"
+        "/list [N] — 列出最近 N 条 Essay\n"
+        "/delete <文件名> — 删除指定 Essay"
     )
 
 
@@ -84,6 +89,72 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     except Exception as exc:
         await update.message.reply_text(f"GitHub 连接失败: {exc}")
+
+
+# ------------------------------------------------------------------
+# /list — 列出最近 Essay
+# ------------------------------------------------------------------
+
+@authorized_only
+async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/list [N] 列出最近 N 条 Essay（默认 10）"""
+    assert github is not None
+    # 解析参数
+    limit = 10
+    if context.args:
+        try:
+            limit = min(int(context.args[0]), 30)
+        except ValueError:
+            pass
+
+    await update.message.chat.send_action(ChatAction.TYPING)
+    try:
+        essays = await github.list_essays(limit)
+        if not essays:
+            await update.message.reply_text("暂无 Essay")
+            return
+
+        lines: list[str] = []
+        for i, e in enumerate(essays, 1):
+            lines.append(f"{i}. `{e['name']}`")
+        text = f"最近 {len(essays)} 条 Essay:\n\n" + "\n".join(lines)
+        text += "\n\n删除: /delete <文件名>"
+        await update.message.reply_text(text, parse_mode="Markdown")
+    except Exception as exc:
+        logger.exception("列出 Essay 失败")
+        await update.message.reply_text(f"获取列表失败: {exc}")
+
+
+# ------------------------------------------------------------------
+# /delete — 删除 Essay
+# ------------------------------------------------------------------
+
+@authorized_only
+async def delete_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """/delete <文件名> 删除指定 Essay"""
+    assert github is not None
+    if not context.args:
+        await update.message.reply_text("用法: /delete <文件名>\n先用 /list 查看文件名")
+        return
+
+    name = context.args[0].strip()
+    # 支持只传文件名，自动补全路径
+    if not name.startswith("src/"):
+        path = f"src/content/essays/{name}"
+    else:
+        path = name
+    if not path.endswith(".md"):
+        path += ".md"
+
+    await update.message.chat.send_action(ChatAction.TYPING)
+    try:
+        await github.delete_file(path)
+        await update.message.reply_text(f"已删除 ✓\n{path}")
+    except FileNotFoundError:
+        await update.message.reply_text(f"文件不存在: {path}")
+    except Exception as exc:
+        logger.exception("删除失败")
+        await update.message.reply_text(f"删除失败: {exc}")
 
 
 # ------------------------------------------------------------------

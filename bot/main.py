@@ -32,6 +32,8 @@ def main() -> None:
     app.add_handler(CommandHandler("start", handlers.start_handler))
     app.add_handler(CommandHandler("help", handlers.help_handler))
     app.add_handler(CommandHandler("status", handlers.status_handler))
+    app.add_handler(CommandHandler("list", handlers.list_handler))
+    app.add_handler(CommandHandler("delete", handlers.delete_handler))
 
     # 图片消息（优先匹配）
     app.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
