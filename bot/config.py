@@ -10,7 +10,10 @@ BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 ALLOWED_USERS: set[int] = set()
 _raw = os.environ.get("TELEGRAM_ALLOWED_USERS", "")
 if _raw.strip():
-    ALLOWED_USERS = {int(uid.strip()) for uid in _raw.split(",") if uid.strip()}
+    for _uid in _raw.split(","):
+        _uid = _uid.strip()
+        if _uid.isdigit():
+            ALLOWED_USERS.add(int(_uid))
 
 # GitHub — 内容仓库
 GITHUB_TOKEN: str = os.environ.get("GITHUB_TOKEN", "")

@@ -128,6 +128,7 @@ class GitHubService:
             content=full_content,
             message=commit_msg,
             sha=sha,
+            branch=config.GITHUB_BRANCH,
         )
         return PublishResult(success=True, file_path=file_path, action=action.lower())
 
