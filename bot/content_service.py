@@ -1,7 +1,9 @@
 """内容处理 — 移植自 iOS 端 Metadata.swift + GitHubService.swift 路径生成逻辑"""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+_CST = timezone(timedelta(hours=8))
 
 
 # 缓存正则 — 对应 GitHubService.swift 第 23-30 行
@@ -16,7 +18,7 @@ _RE_CJK_ALPHA = re.compile(r"[\u4e00-\u9fa5a-zA-Z]")
 def generate_frontmatter(pub_date: datetime | None = None) -> str:
     """生成 Essay Frontmatter — 移植自 Metadata.toFrontmatter(.essay)"""
     if pub_date is None:
-        pub_date = datetime.now()
+        pub_date = datetime.now(_CST)
     date_str = pub_date.strftime("%Y-%m-%d %H:%M:%S")
     return f'---\npubDate: "{date_str}"\n---\n\n'
 
@@ -24,7 +26,7 @@ def generate_frontmatter(pub_date: datetime | None = None) -> str:
 def generate_file_path(content: str, now: datetime | None = None) -> str:
     """生成 Essay 文件路径 — 忠实移植 GitHubService.swift 第 287-317 行"""
     if now is None:
-        now = datetime.now()
+        now = datetime.now(_CST)
 
     date_prefix = now.strftime("%Y-%m-%d")
     timestamp = now.strftime("%H%M%S")

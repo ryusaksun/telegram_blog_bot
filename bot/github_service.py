@@ -140,9 +140,9 @@ class GitHubService:
         self, image_data: bytes, file_name: str
     ) -> ImageUploadResult:
         """上传图片到图床仓库"""
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
 
-        now = datetime.now()
+        now = datetime.now(timezone(timedelta(hours=8)))
         year = now.strftime("%Y")
         month = now.strftime("%m")
         file_path = f"{config.IMAGE_PATH}/{year}/{month}/{file_name}"
