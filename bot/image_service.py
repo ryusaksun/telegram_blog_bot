@@ -76,8 +76,7 @@ def generate_filename() -> str:
 
 
 async def upload_image(image_bytes: bytes, github: GitHubService) -> str:
-    """完整流程：压缩 → 生成文件名 → 上传 → 返回 CDN URL"""
-    compressed = compress_image(image_bytes)
+    """完整流程：生成文件名 → 上传 → 返回 CDN URL（保持原图不压缩）"""
     file_name = generate_filename()
-    result = await github.upload_image(compressed, file_name)
+    result = await github.upload_image(image_bytes, file_name)
     return result.url
