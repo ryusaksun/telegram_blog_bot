@@ -1,5 +1,6 @@
 """内容处理 — 移植自 iOS 端 Metadata.swift + GitHubService.swift 路径生成逻辑"""
 
+import random
 import re
 from datetime import datetime, timezone, timedelta
 
@@ -29,7 +30,7 @@ def generate_file_path(content: str, now: datetime | None = None) -> str:
         now = datetime.now(_CST)
 
     date_prefix = now.strftime("%Y-%m-%d")
-    timestamp = now.strftime("%H%M%S")
+    timestamp = now.strftime("%H%M%S") + f"-{random.randint(100, 999)}"
 
     # 提取纯文本（逐步剥离 markdown 语法）
     plain = content

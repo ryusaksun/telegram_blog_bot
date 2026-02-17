@@ -64,13 +64,14 @@ class GitHubService:
     # 文件操作 — 对应 GitHubService.swift 第 172-228 行
     # ------------------------------------------------------------------
 
-    async def get_file(self, path: str, repo: str | None = None) -> dict[str, Any] | None:
+    async def get_file(self, path: str, repo: str | None = None, branch: str | None = None) -> dict[str, Any] | None:
         """获取文件内容 + SHA，404 返回 None"""
         repo = repo or config.GITHUB_REPO
+        endpoint = f"/repos/{config.GITHUB_OWNER}/{repo}/contents/{path}"
+        if branch:
+            endpoint += f"?ref={branch}"
         try:
-            resp = await self.request(
-                f"/repos/{config.GITHUB_OWNER}/{repo}/contents/{path}"
-            )
+            resp = await self.request(endpoint)
             data = resp.json()
             raw = base64.b64decode(data["content"]).decode()
             return {"content": raw, "sha": data["sha"]}
@@ -115,7 +116,7 @@ class GitHubService:
         full_content = assemble_content(body)
         file_path = generate_file_path(full_content)
 
-        existing = await self.get_file(file_path)
+        existing = await self.get_file(file_path, branch=config.GITHUB_BRANCH)
         action = "Update" if existing else "Add"
         sha = existing["sha"] if existing else None
 

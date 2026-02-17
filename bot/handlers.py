@@ -50,8 +50,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(
         "Essay Bot 已就绪\n\n"
         "直接发送文字即发布为 Essay\n"
-        "发送图片(带 caption) → 图片+文字发布\n"
-        "发送图片(无 caption) → 仅上传图床\n\n"
+        "发送图片 → 上传图片并发布为 Essay\n"
+        "图片+文字 → 文字+图片一起发布\n\n"
         "/status — 检查 GitHub 连接\n"
         "/help — 帮助"
     )
@@ -63,10 +63,10 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text(
         "使用方式:\n\n"
         "1. 纯文字 → 直接发布为 Essay\n"
-        "2. 图片+caption → 上传图片并发布 Essay(含图片)\n"
-        "3. 图片(无caption) → 上传到图床，返回 CDN URL\n"
-        "4. 多图+caption → 所有图片嵌入一条 Essay\n"
-        "5. 多图(无caption) → 批量上传，返回所有 CDN URL"
+        "2. 图片 → 上传图片并发布为 Essay\n"
+        "3. 图片+caption → 文字+图片一起发布\n"
+        "4. 多图 → 所有图片合并为一条 Essay\n"
+        "5. 多图+caption → 文字+所有图片一起发布"
     )
 
 
@@ -141,13 +141,13 @@ async def _process_single_photo(update: Update) -> None:
     """处理单张图片"""
     assert github is not None
     msg = update.message
-    photo = msg.photo[-1]  # 最大尺寸
-    file = await photo.get_file()
-    image_bytes = await file.download_as_bytearray()
-
     caption = msg.caption or ""
 
     try:
+        photo = msg.photo[-1]  # 最大尺寸
+        file = await photo.get_file()
+        image_bytes = await file.download_as_bytearray()
+
         cdn_url = await upload_image(bytes(image_bytes), github)
 
         if caption.strip():
