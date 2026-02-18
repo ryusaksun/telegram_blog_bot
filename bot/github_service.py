@@ -191,20 +191,30 @@ class GitHubService:
     # 列出目录 / 删除文件
     # ------------------------------------------------------------------
 
-    async def list_essays(self, limit: int = 10) -> list[dict[str, str]]:
-        """列出最近的 Essay 文件，按文件名倒序（即按日期倒序）"""
-        endpoint = f"/repos/{config.GITHUB_OWNER}/{config.GITHUB_REPO}/contents/src/content/essays"
+    async def _list_content(self, content_type: str, limit: int) -> list[dict[str, str]]:
+        """列出指定目录下最近的 .md 文件，按文件名倒序"""
+        endpoint = f"/repos/{config.GITHUB_OWNER}/{config.GITHUB_REPO}/contents/src/content/{content_type}"
         if config.GITHUB_BRANCH:
             endpoint += f"?ref={config.GITHUB_BRANCH}"
-        resp = await self.request(endpoint)
+        try:
+            resp = await self.request(endpoint)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return []
+            raise
         items = resp.json()
-        # 只保留 .md 文件，按名称倒序取最新
         md_files = [
             {"name": f["name"], "path": f["path"], "sha": f["sha"]}
             for f in items if f["name"].endswith(".md")
         ]
         md_files.sort(key=lambda x: x["name"], reverse=True)
         return md_files[:limit]
+
+    async def list_essays(self, limit: int = 10) -> list[dict[str, str]]:
+        return await self._list_content("essays", limit)
+
+    async def list_posts(self, limit: int = 5) -> list[dict[str, str]]:
+        return await self._list_content("posts", limit)
 
     async def delete_file(self, path: str) -> None:
         """删除文件"""

@@ -99,31 +99,33 @@ async def status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 @authorized_only
 async def list_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """/list [N] 列出最近 N 条 Essay（默认 10）"""
+    """/list 列出最近的 Essay 和 Post"""
     assert github is not None
-    # 解析参数
-    limit = 10
-    if context.args:
-        try:
-            limit = min(int(context.args[0]), 30)
-        except ValueError:
-            pass
 
     await update.message.chat.send_action(ChatAction.TYPING)
     try:
-        essays = await github.list_essays(limit)
-        if not essays:
-            await update.message.reply_text("暂无 Essay")
+        essays, posts = await asyncio.gather(
+            github.list_essays(10),
+            github.list_posts(5),
+        )
+
+        parts: list[str] = []
+        if essays:
+            lines = [f"{i}. `{e['name']}`" for i, e in enumerate(essays, 1)]
+            parts.append(f"最近 {len(essays)} 条 Essay:\n\n" + "\n".join(lines))
+            parts.append("删除: /delete <文件名>")
+        if posts:
+            lines = [f"{i}. `{p['name']}`" for i, p in enumerate(posts, 1)]
+            parts.append(f"最近 {len(posts)} 条 Post:\n\n" + "\n".join(lines))
+            parts.append("删除: /delete posts/<文件名>")
+
+        if not parts:
+            await update.message.reply_text("暂无内容")
             return
 
-        lines: list[str] = []
-        for i, e in enumerate(essays, 1):
-            lines.append(f"{i}. `{e['name']}`")
-        text = f"最近 {len(essays)} 条 Essay:\n\n" + "\n".join(lines)
-        text += "\n\n删除: /delete <文件名>"
-        await update.message.reply_text(text, parse_mode="Markdown")
+        await update.message.reply_text("\n\n".join(parts), parse_mode="Markdown")
     except Exception as exc:
-        logger.exception("列出 Essay 失败")
+        logger.exception("列出内容失败")
         await update.message.reply_text(f"获取列表失败: {exc}")
 
 
