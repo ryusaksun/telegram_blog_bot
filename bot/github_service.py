@@ -207,7 +207,13 @@ class GitHubService:
             {"name": f["name"], "path": f["path"], "sha": f["sha"]}
             for f in items if f["name"].endswith(".md")
         ]
-        md_files.sort(key=lambda x: x["name"], reverse=True)
+        def _time_key(f: dict[str, str]) -> str:
+            # 文件名格式: YYYY-MM-DD-{slug}-HHMMSS-RRR.md → 提取日期+时间排序
+            base = f["name"].rsplit(".", 1)[0]
+            parts = base.rsplit("-", 2)  # [prefix, HHMMSS, RRR]
+            time_part = parts[-2] if len(parts) >= 3 else ""
+            return base[:10] + time_part
+        md_files.sort(key=_time_key, reverse=True)
         return md_files[:limit]
 
     async def list_essays(self, limit: int = 10) -> list[dict[str, str]]:
