@@ -140,11 +140,13 @@ async def delete_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
 
     name = context.args[0].strip()
-    # 支持只传文件名，自动补全路径
-    if not name.startswith("src/"):
-        path = f"src/content/essays/{name}"
-    else:
+    # 支持只传文件名，自动补全路径（essays 或 posts）
+    if name.startswith("src/"):
         path = name
+    elif name.startswith("posts/") or name.startswith("essays/"):
+        path = f"src/content/{name}"
+    else:
+        path = f"src/content/essays/{name}"
     if not path.endswith(".md"):
         path += ".md"
 
