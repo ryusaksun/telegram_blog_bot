@@ -64,7 +64,7 @@ def assemble_content(body: str, pub_date: datetime | None = None) -> str:
 
 
 def parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
-    """分离 frontmatter 和 body，手动解析 key: "value" 键值对"""
+    """分离 frontmatter 和 body，解析键值对（保留原始值格式）"""
     m = _RE_FRONTMATTER.match(content)
     if not m:
         return {}, content
@@ -72,7 +72,7 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
     fm_block = m.group(0)
     body = content[m.end():]
 
-    # 解析 frontmatter 键值对
+    # 解析 frontmatter 键值对，保留值的原始格式（引号、数组等）
     fields: dict[str, str] = {}
     for line in fm_block.splitlines():
         line = line.strip()
@@ -81,14 +81,13 @@ def parse_frontmatter(content: str) -> tuple[dict[str, str], str]:
         if ":" not in line:
             continue
         key, _, val = line.partition(":")
-        val = val.strip().strip('"').strip("'")
-        fields[key.strip()] = val
+        fields[key.strip()] = val.strip()
 
     return fields, body
 
 
 def assemble_content_with_title(body: str, title: str, pub_date: datetime | None = None) -> str:
-    """组装 .md 文件内容：保留已有 frontmatter 或生成新的，确保 title 和 pubDate 存在"""
+    """组装 .md 文件内容：保留已有 frontmatter 或生成新的，确保 title/pubDate/categories 存在"""
     if pub_date is None:
         pub_date = datetime.now(_CST)
     date_str = pub_date.strftime("%Y-%m-%d %H:%M:%S")
@@ -97,17 +96,18 @@ def assemble_content_with_title(body: str, title: str, pub_date: datetime | None
 
     if fields:
         # 已有 frontmatter，仅在缺失时注入
-        fields.setdefault("title", title)
-        fields.setdefault("pubDate", date_str)
+        fields.setdefault("title", f'"{title}"')
+        fields.setdefault("pubDate", f'"{date_str}"')
+        fields.setdefault("categories", '["Blog"]')
     else:
         # 无 frontmatter，生成新的
-        fields = {"title": title, "pubDate": date_str}
+        fields = {"title": f'"{title}"', "pubDate": f'"{date_str}"', "categories": '["Blog"]'}
         body_text = body
 
-    # 重建 frontmatter
+    # 重建 frontmatter（值已包含引号/数组格式，直接输出）
     fm_lines = ["---"]
     for k, v in fields.items():
-        fm_lines.append(f'{k}: "{v}"')
+        fm_lines.append(f"{k}: {v}")
     fm_lines.append("---")
 
     return "\n".join(fm_lines) + "\n\n" + body_text
