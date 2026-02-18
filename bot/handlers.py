@@ -197,7 +197,7 @@ async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
         result = await github.publish_markdown_file(content, title)
         await msg.reply_text(
-            f"已发布 ✓\n标题: {title}\n路径: {result.file_path}"
+            f"已发布 Post ✓\n标题: {title}\n路径: {result.file_path}"
         )
     except Exception as exc:
         logger.exception(".md 文件处理失败")

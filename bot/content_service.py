@@ -24,8 +24,8 @@ def generate_frontmatter(pub_date: datetime | None = None) -> str:
     return f'---\npubDate: "{date_str}"\n---\n\n'
 
 
-def generate_file_path(content: str, title: str | None = None, now: datetime | None = None) -> str:
-    """生成 Essay 文件路径 — 忠实移植 GitHubService.swift 第 287-317 行"""
+def generate_file_path(content: str, title: str | None = None, now: datetime | None = None, content_type: str = "essays") -> str:
+    """生成文件路径 — 忠实移植 GitHubService.swift 第 287-317 行"""
     if now is None:
         now = datetime.now(_CST)
 
@@ -54,8 +54,8 @@ def generate_file_path(content: str, title: str | None = None, now: datetime | N
             count += 1
 
     if first4:
-        return f"src/content/essays/{date_prefix}-{first4}-{timestamp}.md"
-    return f"src/content/essays/{date_prefix}-{timestamp}.md"
+        return f"src/content/{content_type}/{date_prefix}-{first4}-{timestamp}.md"
+    return f"src/content/{content_type}/{date_prefix}-{timestamp}.md"
 
 
 def assemble_content(body: str, pub_date: datetime | None = None) -> str:

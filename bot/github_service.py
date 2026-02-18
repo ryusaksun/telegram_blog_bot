@@ -134,16 +134,16 @@ class GitHubService:
         return PublishResult(success=True, file_path=file_path, action=action.lower())
 
     async def publish_markdown_file(self, body: str, title: str) -> PublishResult:
-        """上传 .md 文件发布 Essay，保留已有 frontmatter 或生成新的"""
+        """上传 .md 文件发布 Post，保留已有 frontmatter 或生成新的"""
         full_content = assemble_content_with_title(body, title)
-        file_path = generate_file_path(full_content, title=title)
+        file_path = generate_file_path(full_content, title=title, content_type="posts")
 
         existing = await self.get_file(file_path, branch=config.GITHUB_BRANCH)
         action = "Update" if existing else "Add"
         sha = existing["sha"] if existing else None
 
         preview = title[:20]
-        commit_msg = f"{action} essay: {preview}"
+        commit_msg = f"{action} post: {preview}"
 
         await self.create_or_update_file(
             path=file_path,
