@@ -51,7 +51,8 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "Essay Bot 已就绪\n\n"
         "直接发送文字即发布为 Essay\n"
         "发送图片 → 上传图片并发布为 Essay\n"
-        "图片+文字 → 文字+图片一起发布\n\n"
+        "图片+文字 → 文字+图片一起发布\n"
+        "发送 .md 文件 → 文件名作为标题发布\n\n"
         "/list — 最近发布的 Essay\n"
         "/delete — 删除指定 Essay\n"
         "/status — 检查 GitHub 连接\n"
@@ -68,7 +69,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "2. 图片 → 上传图片并发布为 Essay\n"
         "3. 图片+caption → 文字+图片一起发布\n"
         "4. 多图 → 所有图片合并为一条 Essay\n"
-        "5. 多图+caption → 文字+所有图片一起发布\n\n"
+        "5. 多图+caption → 文字+所有图片一起发布\n"
+        "6. .md 文件 → 文件名作为标题发布\n\n"
         "管理:\n"
         "/list [N] — 列出最近 N 条 Essay\n"
         "/delete <文件名> — 删除指定 Essay"
@@ -155,6 +157,51 @@ async def delete_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     except Exception as exc:
         logger.exception("删除失败")
         await update.message.reply_text(f"删除失败: {exc}")
+
+
+# ------------------------------------------------------------------
+# .md 文件上传 → 发布 Essay
+# ------------------------------------------------------------------
+
+@authorized_only
+async def document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """.md 文件上传 → 文件名作为标题发布"""
+    assert github is not None
+    msg = update.message
+    doc = msg.document
+
+    # 校验文件扩展名
+    file_name = doc.file_name or ""
+    if not file_name.lower().endswith(".md"):
+        await msg.reply_text("仅支持 .md 文件")
+        return
+
+    # 校验文件大小 (5MB)
+    if doc.file_size and doc.file_size > 5 * 1024 * 1024:
+        await msg.reply_text("文件过大，限制 5MB")
+        return
+
+    await msg.chat.send_action(ChatAction.TYPING)
+    try:
+        file = await doc.get_file()
+        raw = await file.download_as_bytearray()
+
+        # UTF-8 解码，处理 BOM
+        content = bytes(raw).decode("utf-8-sig")
+        if not content.strip():
+            await msg.reply_text("文件内容为空")
+            return
+
+        # 标题 = 文件名去 .md
+        title = file_name.rsplit(".", 1)[0]
+
+        result = await github.publish_markdown_file(content, title)
+        await msg.reply_text(
+            f"已发布 ✓\n标题: {title}\n路径: {result.file_path}"
+        )
+    except Exception as exc:
+        logger.exception(".md 文件处理失败")
+        await msg.reply_text(f"发布失败: {exc}")
 
 
 # ------------------------------------------------------------------

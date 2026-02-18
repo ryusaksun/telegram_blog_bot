@@ -38,6 +38,12 @@ def main() -> None:
     # 图片消息（优先匹配）
     app.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
 
+    # .md 文件上传
+    app.add_handler(MessageHandler(
+        filters.Document.FileExtension("md"),
+        handlers.document_handler,
+    ))
+
     # 文字消息
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handlers.text_handler))
 

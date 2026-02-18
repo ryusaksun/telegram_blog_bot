@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 
 from . import config
-from .content_service import assemble_content, generate_file_path
+from .content_service import assemble_content, assemble_content_with_title, generate_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +122,27 @@ class GitHubService:
 
         # 提交消息中用前 20 字做预览
         preview = body.replace("\n", " ")[:20]
+        commit_msg = f"{action} essay: {preview}"
+
+        await self.create_or_update_file(
+            path=file_path,
+            content=full_content,
+            message=commit_msg,
+            sha=sha,
+            branch=config.GITHUB_BRANCH,
+        )
+        return PublishResult(success=True, file_path=file_path, action=action.lower())
+
+    async def publish_markdown_file(self, body: str, title: str) -> PublishResult:
+        """上传 .md 文件发布 Essay，保留已有 frontmatter 或生成新的"""
+        full_content = assemble_content_with_title(body, title)
+        file_path = generate_file_path(full_content, title=title)
+
+        existing = await self.get_file(file_path, branch=config.GITHUB_BRANCH)
+        action = "Update" if existing else "Add"
+        sha = existing["sha"] if existing else None
+
+        preview = title[:20]
         commit_msg = f"{action} essay: {preview}"
 
         await self.create_or_update_file(
