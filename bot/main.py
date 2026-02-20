@@ -38,6 +38,12 @@ def main() -> None:
     # 图片消息（优先匹配）
     app.add_handler(MessageHandler(filters.PHOTO, handlers.photo_handler))
 
+    # 以文件形式发送的图片（原图不压缩）
+    app.add_handler(MessageHandler(
+        filters.Document.IMAGE,
+        handlers.image_document_handler,
+    ))
+
     # .md 文件上传
     app.add_handler(MessageHandler(
         filters.Document.FileExtension("md"),

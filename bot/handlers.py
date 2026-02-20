@@ -52,6 +52,7 @@ async def start_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "直接发送文字即发布为 Essay\n"
         "发送图片 → 上传图片并发布为 Essay\n"
         "图片+文字 → 文字+图片一起发布\n"
+        "以文件形式发送图片 → 上传原图（不压缩）\n"
         "发送 .md 文件 → 文件名作为标题发布\n\n"
         "/list — 最近发布的 Essay\n"
         "/delete — 删除指定 Essay\n"
@@ -70,7 +71,8 @@ async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "3. 图片+caption → 文字+图片一起发布\n"
         "4. 多图 → 所有图片合并为一条 Essay\n"
         "5. 多图+caption → 文字+所有图片一起发布\n"
-        "6. .md 文件 → 文件名作为标题发布\n\n"
+        "6. 以文件发送图片 → 上传原图（支持 caption）\n"
+        "7. .md 文件 → 文件名作为标题发布\n\n"
         "管理:\n"
         "/list [N] — 列出最近 N 条 Essay\n"
         "/delete <文件名> — 删除指定 Essay"
@@ -232,8 +234,28 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 # ------------------------------------------------------------------
-# 图片消息
+# 图片消息（压缩图片 + 原图文件共用）
 # ------------------------------------------------------------------
+
+async def _download_image(msg) -> tuple[bytes, str]:
+    """从消息中下载图片，支持 photo 和 document 两种形式
+
+    Returns: (image_bytes, ext) — ext 含点号，如 ".jpg"
+    """
+    if msg.photo:
+        photo = msg.photo[-1]  # 最大尺寸
+        file = await photo.get_file()
+        raw = await file.download_as_bytearray()
+        return bytes(raw), ".jpg"
+
+    doc = msg.document
+    file = await doc.get_file()
+    raw = await file.download_as_bytearray()
+    ext = ".jpg"
+    if doc.file_name and "." in doc.file_name:
+        ext = "." + doc.file_name.rsplit(".", 1)[-1].lower()
+    return bytes(raw), ext
+
 
 @authorized_only
 async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -256,21 +278,41 @@ async def photo_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
     # 单图处理
     await msg.chat.send_action(ChatAction.UPLOAD_PHOTO)
-    await _process_single_photo(update)
+    await _process_single_image(update)
 
 
-async def _process_single_photo(update: Update) -> None:
-    """处理单张图片"""
+@authorized_only
+async def image_document_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """以文件形式发送的图片 → 上传原图并发布为 Essay"""
+    msg = update.message
+
+    # 多图 media group: 收集后延迟处理
+    if msg.media_group_id:
+        group_id = msg.media_group_id
+        if group_id not in _media_groups:
+            _media_groups[group_id] = []
+            context.application.job_queue.run_once(
+                _process_media_group,
+                when=1.5,
+                data=group_id,
+            )
+        _media_groups[group_id].append(update)
+        return
+
+    # 单图处理
+    await msg.chat.send_action(ChatAction.UPLOAD_PHOTO)
+    await _process_single_image(update)
+
+
+async def _process_single_image(update: Update) -> None:
+    """处理单张图片（photo 或 document 均可）"""
     assert github is not None
     msg = update.message
     caption = msg.caption or ""
 
     try:
-        photo = msg.photo[-1]  # 最大尺寸
-        file = await photo.get_file()
-        image_bytes = await file.download_as_bytearray()
-
-        cdn_url = await upload_image(bytes(image_bytes), github)
+        image_bytes, ext = await _download_image(msg)
+        cdn_url = await upload_image(image_bytes, github, ext)
 
         if caption.strip():
             body = f"{caption}\n\n![image]({cdn_url})"
@@ -284,7 +326,7 @@ async def _process_single_photo(update: Update) -> None:
 
 
 async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
-    """延迟处理 media group（多图）"""
+    """延迟处理 media group（多图，支持 photo 和 document 混合）"""
     assert github is not None
     group_id: str = context.job.data
     updates = _media_groups.pop(group_id, [])
@@ -305,10 +347,8 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     try:
         for u in updates:
-            photo = u.message.photo[-1]
-            file = await photo.get_file()
-            image_bytes = await file.download_as_bytearray()
-            url = await upload_image(bytes(image_bytes), github)
+            image_bytes, ext = await _download_image(u.message)
+            url = await upload_image(image_bytes, github, ext)
             cdn_urls.append(url)
 
         images_md = "\n\n".join(f"![image]({url})" for url in cdn_urls)

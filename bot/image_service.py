@@ -68,15 +68,15 @@ def _smart_compress(image_bytes: bytes) -> bytes:
     return data
 
 
-def generate_filename() -> str:
+def generate_filename(ext: str = ".jpg") -> str:
     """生成唯一文件名 — 对应 ImageService.swift 第 169-172 行"""
     ts = int(time.time() * 1000)
     rnd = random.randint(1000, 9999)
-    return f"img-{ts}-{rnd}.jpg"
+    return f"img-{ts}-{rnd}{ext}"
 
 
-async def upload_image(image_bytes: bytes, github: GitHubService) -> str:
+async def upload_image(image_bytes: bytes, github: GitHubService, ext: str = ".jpg") -> str:
     """完整流程：生成文件名 → 上传 → 返回 CDN URL（保持原图不压缩）"""
-    file_name = generate_filename()
+    file_name = generate_filename(ext)
     result = await github.upload_image(image_bytes, file_name)
     return result.url
